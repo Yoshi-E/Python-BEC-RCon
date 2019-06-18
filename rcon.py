@@ -11,8 +11,10 @@ import datetime
 import codecs
 #Author: Yoshi_E
 #Date: 2019.06.14
+#Found on github: https://github.com/Yoshi-E/Python-BEC-RCon
 #Python3.6 Implementation of data protocol: https://www.battleye.com/downloads/BERConProtocol.txt
 #Code based on 'felixms' https://github.com/felixms/arma-rcon-class-php
+#License: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 class ARC():
 
