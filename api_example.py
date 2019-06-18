@@ -25,7 +25,8 @@ import rcon
 #####                    Custom Functions called by the Event Handler                          ####
 ###################################################################################################   
 
-def msg(message):
+def msg(args):
+    message = args[0]
     print(message) #Prints received message
     
 def disco():

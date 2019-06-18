@@ -80,9 +80,9 @@ class CommandRcon:
                 self.epm_rcon.connect() #reconnect
                 print("Reconnecting to BEC Rcon")
     
-    def rcon_on_msg_received(self, message):
-        message=message[0]
-        #print(message)
+    def rcon_on_msg_received(self, args):
+        message=args[0]
+        print(message)
 
 ###################################################################################################
 #####                                BEC Rcon custom commands                                  ####
@@ -118,27 +118,11 @@ class CommandRcon:
             time = pair[0]
             msg+= time.strftime("%H:%M:%S")+" | "+ pair[1]+"\n"
             i += 1
-        await self.bot.send_message(ctx.message.channel, msg) 
-        
-    @commands.check(canUseCmds)   
-    @commands.command(name='getChat',
-        brief="Sends a custom command to the server",
-        pass_context=True)
-    async def getChat(self, ctx, limit=20): 
-        msg = ""
-        data = self.epm_rcon.serverMessage.copy()
-        start = len(data)-1
-        if(start > limit):
-            end = start-limit
-        else:
-            end = 0
-        i = end
-        while(i<=start):
-            pair = data[i]
-            time = pair[0]
-            msg+= time.strftime("%H:%M:%S")+" | "+ pair[1]+"\n"
-            i += 1
-        await self.bot.send_message(ctx.message.channel, msg)    
+            if(len(msg)>1800): #splits message into multiple parts (discord max limit)
+                await self.bot.send_message(ctx.message.channel, msg) 
+                msg=""
+        if(len(msg)>0):
+            await self.bot.send_message(ctx.message.channel, msg) 
 ###################################################################################################
 #####                                   BEC Rcon commands                                      ####
 ###################################################################################################   
