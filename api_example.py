@@ -42,7 +42,7 @@ def disco():
 # All commands are listed in BEC commands in rcon.py
 async def main():
     print("Players:",await epm_rcon.getPlayersArray()) #get Array with all player on server
-    await epm_rcon.listenForData    # waits until on_disconnect
+    await epm_rcon.listenForDataTask    # waits until on_disconnect
     print("Connection Lost")
     #epm_rcon.serverMessage         # Contains all recent messages (limit = 100) Format: [obj(datetime), Str(Message)]
     #epm_rcon.serverCommandData     # Contains all recent command returned data (limit = 10) Format: [obj(datetime), Str(Data)]
