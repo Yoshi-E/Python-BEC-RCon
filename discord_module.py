@@ -69,8 +69,10 @@ class CommandRcon(commands.Cog):
         print(msg)
         if(ctx.author.id in admin_ids):
             return True
-        if(hasattr(ctx.author, 'roles') and ctx.author.roles in roles):
-            return True        
+        if(hasattr(ctx.author, 'roles'):
+            for role in ctx.author.roles:
+                if(role in roles):
+                    return True        
         return False
 ###################################################################################################
 #####                                BEC Rcon Event handler                                    ####
