@@ -1,18 +1,24 @@
 
-# Work with Python 3.6
+# Works with Python 3.6
+# Discord 1.2.2
 import asyncio
 from collections import Counter
 import concurrent.futures
 import json
 import os
+import sys
+import traceback
 import discord
 from discord.ext import commands
 from discord.ext.commands import has_permissions, CheckFailure
+import ast
 import prettytable
+from difflib import get_close_matches 
+import textwrap
 import time
 from modules.rcon import rcon
 
-class CommandRcon:
+class CommandRcon(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.path = os.path.dirname(os.path.realpath(__file__))
@@ -32,6 +38,7 @@ class CommandRcon:
 
         #Add Event Handlers
         self.epm_rcon.add_Event("received_ServerMessage", self.rcon_on_msg_received)
+        self.epm_rcon.add_Event("on_disconnect", self.rcon_on_disconnect)
 
     
         
@@ -47,43 +54,49 @@ class CommandRcon:
         #save data
         with open(self.path+"/rcon_cfg.json", 'w') as outfile:
             json.dump(self.rcon_settings, outfile, sort_keys=True, indent=4, separators=(',', ': '))
-
+    
+    #converts unicode to ascii, until utf-8 is supported by rcon
+    def setEncoding(self, msg):
+        return bytes(msg.encode()).decode("ascii","ignore") 
 
 ###################################################################################################
 #####                                   Bot commands                                           ####
-################################################################################################### 
-    #TODO: No ideal solution yet.
+###################################################################################################   
     def canUseCmds(ctx):
-        aroles = ["Admin", "Developer"]
-        admin_ids = ["000000000000000"] #Custom Discord IDs that can use Its with admin rights
-        self = local_module #fecthing cog from outside class
-        if(ctx.message.author.id in admin_ids):
-            return True
+        roles = ["Admin", "Developer"]
+        admin_ids = [165810842972061697] #can be used in PMS #
         msg = ctx.message.author.name+"#"+str(ctx.message.author.id)+": "+ctx.message.content
         print(msg)
-        # is server: ctx.message.server==None
-        for server in self.bot.servers:
-            for member in server.members:
-                if(member.id == ctx.message.author.id): #locate user
-                    for role in member.roles:           #check if role is valid
-                        if(role.name.lower() in [x.lower() for x in aroles]):
-                            return True
+        if(ctx.author.id in admin_ids):
+            return True
+        if(hasattr(ctx.author, 'roles') and ctx.author.roles in roles):
+            return True        
         return False
-
 ###################################################################################################
 #####                                BEC Rcon Event handler                                    ####
 ###################################################################################################  
     async def keepConnection(self):
         while(True):
-            await asyncio.sleep(60) #wait 60s before attemping reconnection
+            await asyncio.sleep(10) #wait 10s before attemping reconnection
             if(self.epm_rcon.disconnected == True):
                 self.epm_rcon.connect() #reconnect
                 print("Reconnecting to BEC Rcon")
     
     def rcon_on_msg_received(self, args):
         message=args[0]
-        print(message)
-
+        #print(message)    
+    
+    def rcon_on_disconnect(self):
+        print("Disconnected")
+        
+    async def sendLong(self, ctx, msg):
+        while(len(msg)>0):
+            if(len(msg)>1800):
+                await ctx.send(msg[:1800])
+                msg = msg[1800:]
+            else:
+                await ctx.send(msg)
+                msg = ""
 ###################################################################################################
 #####                                BEC Rcon custom commands                                  ####
 ###################################################################################################  
@@ -98,7 +111,7 @@ class CommandRcon:
         else:
             msg+= "Currently not connected: "+ self.epm_rcon.serverIP+"\n"
         msg+= str(len(self.epm_rcon.serverMessage))+ " Messages collected"
-        await self.bot.send_message(ctx.message.channel, msg) 
+        await ctx.message.channel.send(msg) 
         
     @commands.check(canUseCmds)   
     @commands.command(name='getChat',
@@ -119,10 +132,10 @@ class CommandRcon:
             msg+= time.strftime("%H:%M:%S")+" | "+ pair[1]+"\n"
             i += 1
             if(len(msg)>1800): #splits message into multiple parts (discord max limit)
-                await self.bot.send_message(ctx.message.channel, msg) 
+                await ctx.message.channel.send(msg) 
                 msg=""
         if(len(msg)>0):
-            await self.bot.send_message(ctx.message.channel, msg) 
+            await ctx.message.channel.send(msg) 
 ###################################################################################################
 #####                                   BEC Rcon commands                                      ####
 ###################################################################################################   
@@ -133,9 +146,10 @@ class CommandRcon:
         pass_context=True)
     async def command(self, ctx, *message): 
         message = " ".join(message)
+        message = self.setEncoding(message)
         await self.epm_rcon.command(message)
         msg = "Executed command: ``"+message+"``"
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
         
     @commands.check(canUseCmds)   
     @commands.command(name='kickPlayer',
@@ -143,10 +157,11 @@ class CommandRcon:
         pass_context=True)
     async def kickPlayer(self, ctx, player_id: int, *message): 
         message = " ".join(message)
+        message = self.setEncoding(message)
         await self.epm_rcon.kickPlayer(player_id, message)
             
         msg = "kicked player: "+str(player_id)
-        await self.bot.send_message(ctx.message.channel, msg)
+        await ctx.message.channel.send(msg)
             
     @commands.check(canUseCmds)   
     @commands.command(name='say',
@@ -155,9 +170,10 @@ class CommandRcon:
     async def sayGlobal(self, ctx, *message): 
         name = ctx.message.author.name
         message = " ".join(message)
+        message = self.setEncoding(message)
         await self.epm_rcon.sayGlobal(name+": "+message)
         msg = "Send: ``"+message+"``"
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
         
     @commands.check(canUseCmds)   
     @commands.command(name='sayPlayer',
@@ -165,12 +181,13 @@ class CommandRcon:
         pass_context=True)
     async def sayPlayer(self, ctx, player_id: int, *message): 
         message = " ".join(message)
+        message = self.setEncoding(message)
         name = ctx.message.author.name
         if(len(message)<2):
             message = "Ping"
         await self.epm_rcon.sayPlayer(player_id, name+": "+message)
         msg = "Send msg: ``"+str(player_id)+"``"+message
-        await self.bot.send_message(ctx.message.channel, msg)
+        await ctx.message.channel.send(msg)
     
     @commands.check(canUseCmds)   
     @commands.command(name='loadScripts',
@@ -179,7 +196,7 @@ class CommandRcon:
     async def loadScripts(self, ctx): 
         await self.epm_rcon.loadScripts()
         msg = "Loaded Scripts!"
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
             
             
     @commands.check(canUseCmds)   
@@ -189,7 +206,7 @@ class CommandRcon:
     async def maxPing(self, ctx, ping: int): 
         await self.epm_rcon.maxPing(ping)
         msg = "Set maxPing to: "+ping
-        await self.bot.send_message(ctx.message.channel, msg)       
+        await ctx.message.channel.send(msg)       
 
     @commands.check(canUseCmds)   
     @commands.command(name='changePassword',
@@ -199,7 +216,7 @@ class CommandRcon:
         password = " ".join(password)
         await self.epm_rcon.changePassword(password)
         msg = "Set Password to: ``"+password+"``"
-        await self.bot.send_message(ctx.message.channel, msg)        
+        await ctx.message.channel.send(msg)        
         
     @commands.check(canUseCmds)   
     @commands.command(name='loadBans',
@@ -208,7 +225,7 @@ class CommandRcon:
     async def loadBans(self, ctx): 
         await self.epm_rcon.loadBans()
         msg = "Loaded Bans!"
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
         
     @commands.check(canUseCmds)   
     @commands.command(name='players',
@@ -237,7 +254,7 @@ class CommandRcon:
                     msg += "```"
                     msg += str(msgtable)
                     msg += "```"
-                    await self.bot.send_message(ctx.message.channel, msg)
+                    await ctx.message.channel.send(msg)
                     msgtable.clear_rows()
                     msg = ""
                     new = True
@@ -245,8 +262,9 @@ class CommandRcon:
             msg += "```"
             msg += str(msgtable)
             msg += "```"
-            await self.bot.send_message(ctx.message.channel, msg)    
-              
+            await ctx.message.channel.send(msg)  
+            
+
     @commands.check(canUseCmds)   
     @commands.command(name='getMissions',
         brief="Gets a list of all Missions",
@@ -254,13 +272,7 @@ class CommandRcon:
     async def getMissions(self, ctx):
         missions = await self.epm_rcon.getMissions()
         missions = missions[1]
-        while(len(missions)>0):
-            if(len(missions)>1800):
-                await self.bot.send_message(ctx.message.channel, missions[:1800])
-                missions = missions[1800:]
-            else:
-                await self.bot.send_message(ctx.message.channel, missions)
-                missions = ""
+        await self.sendLong(ctx, missions)
                 
     @commands.check(canUseCmds)   
     @commands.command(name='banPlayer',
@@ -268,6 +280,7 @@ class CommandRcon:
         pass_context=True)
     async def banPlayer(self, ctx, player_id, time=0, *message): 
         message = " ".join(message)
+        message = self.setEncoding(message)
         print("banPlayer", player_id, message)
         matches = ["?"]
         if(len(player_id) >3 and player_id.isdigit()==False):
@@ -291,7 +304,7 @@ class CommandRcon:
             await self.epm_rcon.banPlayer(player, message, time)
             
         msg = "Banned player: ``"+str(player)+" - "+matches[0]+"`` with reason: "+message
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
         
         
     @commands.check(canUseCmds)   
@@ -300,6 +313,7 @@ class CommandRcon:
         pass_context=True)
     async def addBan(self, ctx, GUID, time=0, *message): 
         message = " ".join(message)
+        message = self.setEncoding(message)
         player = player_id
         matches = ["?"]
         if(len(GUID) != 32):
@@ -310,7 +324,7 @@ class CommandRcon:
             await self.epm_rcon.addBan(player, message, time)
             
         msg = "Banned player: ``"+str(player)+" - "+matches[0]+"`` with reason: "+message
-        await self.bot.send_message(ctx.message.channel, msg)   
+        await ctx.message.channel.send(msg)   
 
     @commands.check(canUseCmds)   
     @commands.command(name='removeBan',
@@ -320,7 +334,7 @@ class CommandRcon:
         await self.epm_rcon.removeBan(banID)
             
         msg = "Removed ban: ``"+str(banID)+"``"
-        await self.bot.send_message(ctx.message.channel, msg)    
+        await ctx.message.channel.send(msg)    
         
     @commands.check(canUseCmds)   
     @commands.command(name='getBans',
@@ -350,7 +364,7 @@ class CommandRcon:
                     msg += "```"
                     msg += str(msgtable)
                     msg += "```"
-                    await self.bot.send_message(ctx.message.channel, msg)
+                    await ctx.message.channel.send(msg)
                     msgtable.clear_rows()
                     msg = ""
                     new = True
@@ -358,10 +372,10 @@ class CommandRcon:
             msg += "```"
             msg += str(msgtable)
             msg += "```"
-            await self.bot.send_message(ctx.message.channel, msg)   
+            await ctx.message.channel.send(msg)   
         if(i>=limit):
             msg = "Limit of "+str(limit)+" reached. There are still "+str(len(bans)-i)+" more bans"
-            await self.bot.send_message(ctx.message.channel, msg)   
+            await ctx.message.channel.send(msg)   
             
     @commands.check(canUseCmds)   
     @commands.command(name='getBEServerVersion',
@@ -370,11 +384,12 @@ class CommandRcon:
     async def getBEServerVersion(self, ctx): 
         version = await self.epm_rcon.getBEServerVersion()
         msg = "BE version: ``"+str(version[1])+"``"
-        await self.bot.send_message(ctx.message.channel, msg)      
+        await ctx.message.channel.send(msg)      
     
     ###################################################################################################
-    #####                                  Debug Commands                                          ####
+    #####                                  Debug Commands & Error Handeling                 ####
     ###################################################################################################
+
     async def handle_exception(self, myfunction):
         coro = getattr(self, myfunction)
         for i in range (0,5):
@@ -383,16 +398,17 @@ class CommandRcon:
             except Exception as ex:
                 ex = str(ex)+"/n"+str(traceback.format_exc())
                 user=await self.bot.get_user_info("165810842972061697")
-                await self.bot.send_message(user, "Caught exception")
-                await self.bot.send_message(user, (ex[:1800] + '..') if len(ex) > 1800 else ex)
+                await user.send(user, "Caught exception")
+                await user.send(user, (ex[:1800] + '..') if len(ex) > 1800 else ex)
                 logging.error('Caught exception')
                 await asyncio.sleep(10)  
-                
+    
 local_module = None
 def setup(bot):
     global local_module
     module = CommandRcon(bot)
     local_module = module #access for @check decorators
     bot.loop.create_task(module.handle_exception("keepConnection"))
-    bot.add_cog(module)      
+    
+    bot.add_cog(module)    
     

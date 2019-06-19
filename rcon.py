@@ -112,7 +112,7 @@ class ARC():
 
     #sends the RCon command, but waits until command is confirmed before sending another one
     async def send(self, command):
-        for i in range(0,10*60):
+        for i in range(0,10 * self.options['timeoutSec']):
             if(self.sendLock == False): #Lock released by waitForResponse()
                 self.sendLock = True
                 if (self.disconnected):
@@ -347,9 +347,11 @@ class ARC():
                 self.sendLock = False #release the lock
                 return self.serverCommandData.pop()
             await asyncio.sleep(0.1)
+        if(self.options['debug']):
+            print("Failed to keep connection - Disconnected")
         self.on_command_fail()
         self.sendLock = False
-        raise Exception("ERROR, command timed out")
+        self.disconnect() #Connection Lost
         
             
     def sendReciveConfirmation(self, sequence):
@@ -399,35 +401,21 @@ class ARC():
     async def keepAliveLoop(self):
         while (self.disconnected == False):
             #package needs to be send every min:1s, max:44s 
-            diff = datetime.datetime.now() - self.lastSend
-            if(diff.total_seconds() > 20): 
-                self.keepAlive()
-                
             diff = datetime.datetime.now() - self.lastReceived
-            if(diff.total_seconds() > 30): 
-                try:
-                    if(self.options['debug']):
-                        print('--Keep connection alive (check alive)--'+"\n")
-                    await self.getBEServerVersion()
-                except Exception as e:
-                    if(self.options['debug']):
-                        print("Failed to keep Alive - Disconnected")
-                    self.disconnect() #connection lost
+            if(diff.total_seconds() > 10): 
+                await self.keepAlive()
             await asyncio.sleep(4)  
   
     #Keep the stream alive. Send package to BE server. Use function before 45 seconds.
-    def keepAlive(self):
-        if(self.options['debug']):
-            print('--Keep connection alive--'+"\n")
-        #loginMsg = 'BE'+chr(int(authCRC[0],16))+chr(int(authCRC[1],16))+chr(int(authCRC[2],16))+chr(int(authCRC[3],16))
-        keepalive = 'BE'+chr(int("be",16))+chr(int("dc",16))+chr(int("c2",16))+chr(int("58",16))
-        keepalive += chr(int('ff', 16))+chr(int('01',16))+chr(int('00',16))
-        self.lastSend = datetime.datetime.now()
-        if (self.writeToSocket(keepalive) == False):
-            raise Exception('Failed to send command!')
-            return False #Failed
-            
-        return True #Completed
+    async def keepAlive(self):
+        try:
+            if(self.options['debug']):
+                print('--Keep connection alive--'+"\n")
+            await self.getBEServerVersion()
+        except Exception as e:
+            if(self.options['debug']):
+                print("Failed to keep Alive - Disconnected")
+            self.disconnect() #connection lost
 
     #Converts BE text "array" list to array
     def formatList(self, str):
