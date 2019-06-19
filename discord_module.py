@@ -69,7 +69,7 @@ class CommandRcon(commands.Cog):
         print(msg)
         if(ctx.author.id in admin_ids):
             return True
-        if(hasattr(ctx.author, 'roles'):
+        if(hasattr(ctx.author, 'roles')):
             for role in ctx.author.roles:
                 if(role in roles):
                     return True        
