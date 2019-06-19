@@ -1,9 +1,6 @@
 ﻿import socket
-import os
-import sys
 import re
 import zlib
-import binascii
 import asyncio
 import traceback
 from collections import deque
@@ -37,6 +34,9 @@ class ARC():
         self.Events = []
         #Multi packet buffer
         self.MultiPackets = []
+        
+        self.lastSend = datetime.datetime.now()
+        self.lastReceived = datetime.datetime.now()
         # Locks Sending until space to send is available 
         self.sendLock = False
         # Stores all recent command returned data (Format: array([datetime, msg],...))
@@ -63,6 +63,8 @@ class ARC():
     def disconnect(self):
         if (self.disconnected):
             return None
+        if(self.options['debug']):
+            print("Disconnected")
         self.on_disconnect()
         self.socket.close()
         self.socket = None
@@ -115,7 +117,6 @@ class ARC():
                 self.sendLock = True
                 if (self.disconnected):
                     raise Exception('Failed to send command, because the connection is closed!')
-            
                 msgCRC = self.getMsgCRC(command)
                 head = 'BE'+chr(int(msgCRC[0],16))+chr(int(msgCRC[1],16))+chr(int(msgCRC[2],16))+chr(int(msgCRC[3],16))+chr(int('ff',16))+chr(int('01',16))+chr(int('0',16))
                 msg = head+command
@@ -128,6 +129,7 @@ class ARC():
     
     #Writes the given message to the socket
     def writeToSocket(self, message):
+        self.lastSend = datetime.datetime.now()
         return self.socket.send(bytes(message.encode(self.codec)))
     
     #Debug funcion to view special chars
@@ -267,7 +269,6 @@ class ARC():
         bansRaw = await self.getBans()
         bans = self.cleanList(bansRaw[1])
         str = re.findall(r'(\d+)\s+([0-9a-fA-F]+)\s([perm|\d]+)\s([\S ]+)', bans)
-        #PHP preg_match_all("#(\d+)\s+([0-9a-fA-F]+)\s([perm|\d]+)\s([\S ]+)#im", bans, str)
         return self.formatList(str)
 
     #Gets a list of all bans
@@ -281,7 +282,6 @@ class ARC():
         return None
 
     #Gets the current version of the BE server
-    #@return string The BE server version
     async def getBEServerVersion(self):
         await self.send('version')
         return await self.waitForResponse()
@@ -319,19 +319,17 @@ class ARC():
      
     def received_ServerMessage(self, packet, message):
         self.serverMessage.append([datetime.datetime.now(), message])
-        #print()
         self.sendReciveConfirmation(packet[8]) #confirm with sequence id from packet  
         self.check_Event("received_ServerMessage", message)
     
     #waitForResponse() handles all inbound packets, you can still fetch them here though.
     def received_CommandMessage(self, packet, message):
-        if(self.String2Hex(message[0]) =="00"): #is multi packet
+        if(len(message)>3 and self.String2Hex(message[0]) =="00"): #is multi packet
             self.MultiPackets.append(message[3:])
             if(int(self.String2Hex(message[1]),16)-1 == int(self.String2Hex(message[2]),16)):
                 self.serverCommandData.append([datetime.datetime.now(), "".join(self.MultiPackets)])
                 self.MultiPackets = []
         else: #Normal Package
-            #print(self.String2Hex(message))
             self.serverCommandData.append([datetime.datetime.now(), message])
         self.check_Event("received_CommandMessage", message)
             
@@ -377,6 +375,10 @@ class ARC():
                 crc32_checksum = header[2:-1]
                 body = codecs.decode(""+self.String2Hex(answer[9:]), "hex").decode() #some encoding magic (iso-8859-1(with utf-8 chars) --> utf-8)
                 packet_type = self.String2Hex(answer[7])
+                self.lastReceived = datetime.datetime.now()
+                if(self.options['debug']):
+                    print("Received Package type:",packet_type)
+                    print("Data:",body)
                 if(packet_type=="02"): 
                     self.received_ServerMessage(answer, body)
                 if(packet_type=="01"):
@@ -396,21 +398,31 @@ class ARC():
             
     async def keepAliveLoop(self):
         while (self.disconnected == False):
-            try:
-                await self.getBEServerVersion() #self.keepAlive()
-            except Exception as e:
-                traceback.print_exc()
-                self.disconnect() #connection lost
-            await asyncio.sleep(20) #package needs to be send every min:1s, max:44s 
+            #package needs to be send every min:1s, max:44s 
+            diff = datetime.datetime.now() - self.lastSend
+            if(diff.total_seconds() > 20): 
+                self.keepAlive()
+                
+            diff = datetime.datetime.now() - self.lastReceived
+            if(diff.total_seconds() > 30): 
+                try:
+                    if(self.options['debug']):
+                        print('--Keep connection alive (check alive)--'+"\n")
+                    await self.getBEServerVersion()
+                except Exception as e:
+                    if(self.options['debug']):
+                        print("Failed to keep Alive - Disconnected")
+                    self.disconnect() #connection lost
+            await asyncio.sleep(4)  
   
     #Keep the stream alive. Send package to BE server. Use function before 45 seconds.
     def keepAlive(self):
-        if (self.options['debug']):
+        if(self.options['debug']):
             print('--Keep connection alive--'+"\n")
         #loginMsg = 'BE'+chr(int(authCRC[0],16))+chr(int(authCRC[1],16))+chr(int(authCRC[2],16))+chr(int(authCRC[3],16))
         keepalive = 'BE'+chr(int("be",16))+chr(int("dc",16))+chr(int("c2",16))+chr(int("58",16))
         keepalive += chr(int('ff', 16))+chr(int('01',16))+chr(int('00',16))
-        #print("Alive:",self.String2Hex(keepalive))
+        self.lastSend = datetime.datetime.now()
         if (self.writeToSocket(keepalive) == False):
             raise Exception('Failed to send command!')
             return False #Failed
