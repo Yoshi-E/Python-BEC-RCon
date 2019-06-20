@@ -327,7 +327,16 @@ class CommandRcon(commands.Cog):
     async def getMissions(self, ctx):
         missions = await self.epm_rcon.getMissions()
         await self.sendLong(ctx, missions)
-                
+        
+    @commands.check(canUseCmds)   
+    @commands.command(name='loadMission',
+        brief="Loads a mission",
+        pass_context=True)
+    async def loadMission(self, ctx, mission: str):
+        missions = await self.epm_rcon.getMissions(mission)
+        msg = "Loaded mission: ``"+str(missions)+"``"
+        await ctx.message.channel.send(msg)  
+    
     @commands.check(canUseCmds)   
     @commands.command(name='banPlayer',
         brief="Ban a player's BE GUID from the server. If time is not specified or 0, the ban will be permanent.",
@@ -512,23 +521,6 @@ class CommandRcon(commands.Cog):
         msg = "Restart the mission with new player slot selection"
         await ctx.message.channel.send(msg)       
 
-    ###################################################################################################
-    #####                                  Debug Commands & Error Handeling                 ####
-    ###################################################################################################
-
-    async def handle_exception(self, myfunction):
-        coro = getattr(self, myfunction)
-        for i in range (0,5):
-            try:
-                await coro()
-            except Exception as ex:
-                ex = str(ex)+"/n"+str(traceback.format_exc())
-                user=self.bot.get_user(165810842972061697)
-                await user.send(user, "Caught exception")
-                await user.send(user, (ex[:1800] + '..') if len(ex) > 1800 else ex)
-                logging.error('Caught exception')
-                await asyncio.sleep(10)  
-    
 def setup(bot):
     bot.add_cog(CommandRcon(bot))    
     
