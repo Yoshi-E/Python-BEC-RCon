@@ -43,6 +43,8 @@ class ARC():
         #number of commands waiting to be send (limited to 10)
         #prevents overflow from to many queued commands
         self.activeSend = 0 
+        #limits how many data packages can be send at the same time
+        self.max_waiting_for_send = 10 
         # Stores all recent command returned data (Format: array([datetime, msg],...))
         self.serverCommandData = deque( maxlen=10) 
         
@@ -115,10 +117,11 @@ class ARC():
             raise Exception('Failed to send login!')
 
     #sends the RCon command, but waits until command is confirmed before sending another one
-    async def send(self, command):
+    async def send(self, command: str):
+        
         self.activeSend += 1
         for i in range(0,10 * self.options['timeoutSec']):
-            if(self.activeSend > 10):
+            if(self.activeSend > self.max_waiting_for_send):
                 break
             if(self.sendLock == False): #Lock released by waitForResponse()
                 self.sendLock = True
@@ -134,8 +137,10 @@ class ARC():
             else:
                 await asyncio.sleep(0.1) #watis 0.1 second before checking again
         self.activeSend -= 1
-        raise Exception("Failed to send in time: "+command)
-    
+        if(self.activeSend > self.max_waiting_for_send):
+            raise Exception("Failed to send in time: "+command+ " too many commands in queue >"+str(self.max_waiting_for_send))
+        else:
+            raise Exception("Failed to send in time: "+command)
     #Writes the given message to the socket
     def writeToSocket(self, message):
         self.lastSend = datetime.datetime.now()
@@ -170,9 +175,11 @@ class ARC():
 #####                                  BEC Commands                                            ####
 ###################################################################################################   
 #
-#                            *** Warning ***
-#     Depending on your configuation of BEC not all commands might work
-#                            *** Warning ***
+#                                    *** Warning ***
+#               Depending on your configuation of BEC not all commands might work
+#                                    *** Warning ***
+#  Commands will return an empty string or data if they were sucessfull
+#  Commands will raise an exception if the server did not confirm its execution
 
     #Sends a custom command to the server
     async def command(self, command: str):
@@ -186,49 +193,61 @@ class ARC():
         if (type(reason) != str):
             raise Exception('Expected parameter 2 to be string, got %s' % type(reason))
         await self.send("kick "+str(player)+" "+reason)
-        return None
+        return await self.waitForResponse()
 
     #Sends a global message to all players
     async def sayGlobal(self, message: str):
         await self.send("Say -1 "+message)
-        return None
+        return await self.waitForResponse()
 
     #Sends a message to a specific player
     async def sayPlayer(self, player: int, message: str):
         await self.send("Say "+str(player)+" "+message)
-        return None
+        return await self.waitForResponse()
 
     #Loads the "scripts.txt" file without the need to restart the server
     async def loadScripts(self):
         await self.send('loadScripts')
-        return None
+        return await self.waitForResponse()
 
     #Changes the MaxPing value. If a player has a higher ping, he will be kicked from the server
     async def maxPing(self, ping: int):
         await self.send("MaxPing "+str(ping))
-        return None
+        return await self.waitForResponse()
     
     #Changes the RCon password
     async def changePassword(self, password: str):
         await self.send("RConPassword password")
-        return None
+        return await self.waitForResponse()
     
     #(Re)load the BE ban list from bans.txt
     async def loadBans(self):
         await self.send('loadBans')
-        return None
+        return await self.waitForResponse()
 
     #Gets a list of all players currently on the server
     async def getPlayers(self):
         await self.send('players')
-        result = await self.waitForResponse()
-        return result #strip timedate
+        return await self.waitForResponse()
 
     #Gets a list of all players currently on the server as an array
     async def getPlayersArray(self):
         playersRaw = await self.getPlayers()
         players = self.cleanList(playersRaw)
         str = re.findall(r"(\d+)\s+(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+\b)\s+(\d+)\s+([0-9a-fA-F]+)\(\w+\)\s([\S ]+)", players)
+        return self.formatList(str)    
+        
+    #Gets a list of all admins connected to the server
+    async def getAdmins(self):
+        await self.send('admins')
+        result = await self.waitForResponse()
+        return result #strip timedate
+        
+    #Gets a list of all players currently on the server as an array
+    async def getAdminsArray(self):
+        adminsRaw = await self.getAdmins()
+        admins = self.cleanList(adminsRaw)
+        str = re.findall(r"(\d+)\s+(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+\b)", admins)
         return self.formatList(str)
     
     #Gets a list of all bans
@@ -251,25 +270,21 @@ class ARC():
         await self.send("ban "+str(player)+" "+str(time)+" "+reason)
         if (self.options['autosaveBans']):
             self.writeBans()
-        return None
+        return await self.waitForResponse()   
 
     #Same as "banPlayer", but allows to ban a player that is not currently on the server
-    async def addBan(self, player, reason = 'Banned', time = 0):
-        if (type(player) != str or type(reason) != str or type(time) != int):
-            raise Exception('Wrong parameter type(s)!')
+    async def addBan(self, player_id: int, reason = 'Banned', time = 0):
         await self.send("addBan "+player+" "+str(time)+" "+reason)
         if (self.options['autosaveBans']):
             self.writeBans()
-        return None
+        return await self.waitForResponse()
 
     #Removes a ban
-    async def removeBan(self, banId):
-        if (type(banId) != int):
-            raise Exception('Expected parameter 1 to be integer, got %s' % type(banId))
+    async def removeBan(self, banId: int):
         await self.send("removeBan "+str(banId))
         if (self.options['autosaveBans']):
             self.writeBans()
-        return None
+        return await self.waitForResponse()
 
     #Gets an array of all bans
     async def getBansArray(self):
@@ -286,76 +301,69 @@ class ARC():
     #Removes expired bans from bans file
     async def writeBans(self):
         await self.send('writeBans')
-        return None
+        return await self.waitForResponse()
 
     #Gets the current version of the BE server
     async def getBEServerVersion(self):
         await self.send('version')
-        return await self.waitForResponse()    
+        return await self.waitForResponse() 
         
-    #Gets the current uptime of the server
-    async def getUptime(self):
-        await self.send('uptime')
-        return await self.waitForResponse()
-    
-    #TODO name = str? confirm funcinality 
-    #Add a temporary admin into group
-    async def grant(self, name: str):
-        await self.send('grant '+name)
-        return await self.waitForResponse()    
-        
-    #TODO name = str? confirm funcinality 
-    #Add a temporary admin into group
-    async def degrant(self, name: str):
-        await self.send('degrant '+name)
-        return await self.waitForResponse()
-    
-    #TODO name = str? confirm funcinality 
-    #Send a warning to a player, it will increase the warncount if defined in the config file
-    async def warn(self, name: str):
-        await self.send('warn '+name)
-        return await self.waitForResponse()   
+###################################################################################################
+#####                                  Arma Server Commands                                    ####
+################################################################################################### 
+# Commands starting with a '#' can be execuded, but will return no data
 
     #Locks the server. No one will be able to join
     async def lock(self):
         await self.send('#lock')
         return await self.waitForResponse()
-    
+        
     #Unlocks the Server
     async def unlock(self):
         await self.send('#unlock')
         return await self.waitForResponse()
     
-    #TODO confirm funcinality 
-    #Unlocks the Server
+    #Shutdowns the Server
     #args: [x, "abort", "info"] x= time in seconds till shutdown
-    async def shutdown(self, arg):
-        await self.send('#shutdown '+str(arg))
+    async def shutdown(self):
+        await self.send('#shutdown')
         return await self.waitForResponse()    
     
-    #TODO confirm funcinality 
     #Restart mission with current player slot selection
     async def restart(self):
         await self.send('#restart')
+        return await self.waitForResponse()       
+        
+    #Shuts down and restarts the server immediately
+    async def restartServer(self):
+        await self.send('#restartserver')
+        return await self.waitForResponse()    
+    
+    #Shuts down and restarts the server after mission ends
+    async def restartserveraftermission(self):
+        await self.send('#restartserveraftermission')
+        return await self.waitForResponse()        
+    
+    #Shuts down the server after mission ends 
+    async def shutdownserveraftermission(self):
+        await self.send('#shutdownserveraftermission')
         return await self.waitForResponse()    
         
-    #TODO confirm funcinality 
     #Restart the mission with new player slot selection
     async def reassign(self):
         await self.send('#reassign')
         return await self.waitForResponse()    
+            
+    #Shows performance information in the dedicated server console. Interval 0 means to stop monitoring.
+    async def monitords(self, inveral: int):
+        await self.send('#monitords '+str(inveral))
+        return await self.waitForResponse()     
         
-    #TODO confirm funcinality 
-    #Kick N numbers of player based on join time. last joined players will get kicked.
-    async def makeroom(self, number = 1):
-        await self.send('makeroom '+str(number))
+    #Users can vote for the mission selection.
+    async def goVote(self):
+        await self.send('#vote missions')
         return await self.waitForResponse()    
         
-    #TODO confirm funcinality 
-    #Show player info. Beid and join time.
-    async def pinfo(self, name: str):
-        await self.send('pinfo '+str(name))
-        return await self.waitForResponse()
 
 ###################################################################################################
 #####                                  event handler                                           ####

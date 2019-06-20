@@ -81,7 +81,9 @@ class CommandRcon(commands.Cog):
 ###################################################################################################   
     def canUseCmds(ctx):
         roles = ["Admin", "Developer"] #Does not work in PMs for now
-        admin_ids = [165810842972061697] #can be used in PMS
+        admin_ids = [165810842972061697,  #can be used in PMS
+                     218606481094737920, 
+                     105981087590649856]
         print(ctx.message.author.name+"#"+str(ctx.message.author.id)+": "+ctx.message.content)
         if(ctx.author.id in admin_ids):
             return True
@@ -165,8 +167,11 @@ class CommandRcon(commands.Cog):
         message = " ".join(message)
         message = self.setEncoding(message)
         data = await self.epm_rcon.command(message)
-        msg = "Executed command: ``"+str(message)+"`` wich returned: "+str(data)
-        self.sendLong(ctx,msg)
+        if(len(data) == 0):
+            msg = "Executed command: ``"+str(message)+"`` and returned nothing (confirmed its execution)"
+        else:
+            msg = "Executed command: ``"+str(message)+"`` wich returned: "+str(data)
+        await self.sendLong(ctx,msg)
         
     @commands.check(canUseCmds)   
     @commands.command(name='kickPlayer',
@@ -214,7 +219,6 @@ class CommandRcon(commands.Cog):
         await self.epm_rcon.loadScripts()
         msg = "Loaded Scripts!"
         await ctx.message.channel.send(msg)    
-            
             
     @commands.check(canUseCmds)   
     @commands.command(name='maxPing',
@@ -279,9 +283,43 @@ class CommandRcon(commands.Cog):
             msg += "```"
             msg += str(msgtable)
             msg += "```"
+            await ctx.message.channel.send(msg)    
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='admins',
+        brief="lists current admins on the server",
+        pass_context=True)
+    async def admins(self, ctx):
+        admins = await self.epm_rcon.getAdminsArray()
+        msgtable = prettytable.PrettyTable()
+        msgtable.field_names = ["ID", "IP"]
+        msgtable.align["ID"] = "r"
+        msgtable.align["IP"] = "l"
+
+        limit = 100
+        i = 1
+        new = False
+        msg  = ""
+        for admin in admins:
+            if(i <= limit):
+                msgtable.add_row([admin[0], admin[1]])
+                if(len(str(msgtable)) < 1800):
+                    i += 1
+                    new = False
+                else:
+                    msg += "```"
+                    msg += str(msgtable)
+                    msg += "```"
+                    await ctx.message.channel.send(msg)
+                    msgtable.clear_rows()
+                    msg = ""
+                    new = True
+        if(new==False):
+            msg += "```"
+            msg += str(msgtable)
+            msg += "```"
             await ctx.message.channel.send(msg)  
             
-
     @commands.check(canUseCmds)   
     @commands.command(name='getMissions',
         brief="Gets a list of all Missions",
@@ -305,12 +343,11 @@ class CommandRcon(commands.Cog):
         msg = "Banned player: ``"+str(player)+" - "+matches[0]+"`` with reason: "+message
         await ctx.message.channel.send(msg)    
         
-        
     @commands.check(canUseCmds)   
     @commands.command(name='addBan',
         brief="Same as 'banPlayer', but allows to ban a player that is not currently on the server",
         pass_context=True)
-    async def addBan(self, ctx, GUID, time=0, *message): 
+    async def addBan(self, ctx, GUID: str, time=0, *message): 
         message = " ".join(message)
         message = self.setEncoding(message)
         player = player_id
@@ -386,12 +423,93 @@ class CommandRcon(commands.Cog):
         await ctx.message.channel.send(msg)         
         
     @commands.check(canUseCmds)   
-    @commands.command(name='getUptime',
-        brief="Gets the current uptime of the server",
+    @commands.command(name='lock',
+        brief="Locks the server. No one will be able to join",
         pass_context=True)
-    async def getUptime(self, ctx): 
-        data = await self.epm_rcon.getUptime()
-        msg = "Uptime: ``"+str(data)+"``"
+    async def lock(self, ctx): 
+        data = await self.epm_rcon.lock()
+        msg = "Locked the Server"
+        await ctx.message.channel.send(msg)    
+
+    @commands.check(canUseCmds)   
+    @commands.command(name='unlock',
+        brief="Unlocks the Server",
+        pass_context=True)
+    async def unlock(self, ctx): 
+        data = await self.epm_rcon.unlock()
+        msg = "Unlocked the Server"
+        await ctx.message.channel.send(msg)       
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='shutdown',
+        brief="Shutdowns the Server",
+        pass_context=True)
+    async def shutdown(self, ctx): 
+        data = await self.epm_rcon.shutdown()
+        msg = "Shutdown the Server"
+        await ctx.message.channel.send(msg)           
+        
+    @commands.check(canUseCmds)   
+    @commands.command(name='restart',
+        brief="Restart mission with current player slot selection",
+        pass_context=True)
+    async def restart(self, ctx): 
+        data = await self.epm_rcon.restart()
+        msg = "Restarting the Mission"
+        await ctx.message.channel.send(msg)          
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='restartServer',
+        brief="Shuts down and restarts the server immediately",
+        pass_context=True)
+    async def restartServer(self, ctx): 
+        data = await self.epm_rcon.restartServer()
+        msg = "Restarting the Server"
+        await ctx.message.channel.send(msg)           
+        
+    @commands.check(canUseCmds)   
+    @commands.command(name='restartM',
+        brief="Shuts down and restarts the server after mission ends",
+        pass_context=True)
+    async def restartserveraftermission(self, ctx): 
+        data = await self.epm_rcon.restartserveraftermission()
+        msg = "Restarting the Server after mission ends"
+        await ctx.message.channel.send(msg)       
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='shutdownM',
+        brief="Shuts down the server after mission ends",
+        pass_context=True)
+    async def shutdownserveraftermission(self, ctx): 
+        data = await self.epm_rcon.shutdownserveraftermission()
+        msg = "Restarting the Server after mission ends"
+        await ctx.message.channel.send(msg)       
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='reassign',
+        brief="Shuts down the server after mission ends",
+        pass_context=True)
+    async def reassign(self, ctx): 
+        data = await self.epm_rcon.reassign()
+        msg = "Restart the mission with new player slot selection"
+        await ctx.message.channel.send(msg)          
+    
+    @commands.check(canUseCmds)   
+    @commands.command(name='monitords',
+        brief="Shows performance information in the dedicated server console. Interval 0 means to stop monitoring.",
+        pass_context=True)
+    async def monitords(self, ctx, interval: int): 
+        data = await self.epm_rcon.monitords(interval)
+        msg = "Restart the mission with new player slot selection"
+        await ctx.message.channel.send(msg)        
+        
+    @commands.check(canUseCmds)   
+    @commands.command(name='goVote',
+        brief="Users can vote for the mission selection.",
+        pass_context=True)
+    async def goVote(self, ctx): 
+        data = await self.epm_rcon.goVote()
+        msg = "Restart the mission with new player slot selection"
         await ctx.message.channel.send(msg)       
 
     ###################################################################################################
