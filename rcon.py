@@ -6,6 +6,7 @@ import traceback
 from collections import deque
 import datetime
 import codecs
+import inspect
 #Author: Yoshi_E
 #Date: 2019.06.14
 #Found on github: https://github.com/Yoshi-E/Python-BEC-RCon
@@ -39,6 +40,9 @@ class ARC():
         self.lastReceived = datetime.datetime.now()
         # Locks Sending until space to send is available 
         self.sendLock = False
+        #number of commands waiting to be send (limited to 10)
+        #prevents overflow from to many queued commands
+        self.activeSend = 0 
         # Stores all recent command returned data (Format: array([datetime, msg],...))
         self.serverCommandData = deque( maxlen=10) 
         
@@ -65,10 +69,10 @@ class ARC():
             return None
         if(self.options['debug']):
             print("Disconnected")
-        self.on_disconnect()
         self.socket.close()
         self.socket = None
         self.disconnected = True
+        self.on_disconnect()
     
     #Creates a connection to the server
     def connect(self):
@@ -112,7 +116,10 @@ class ARC():
 
     #sends the RCon command, but waits until command is confirmed before sending another one
     async def send(self, command):
+        self.activeSend += 1
         for i in range(0,10 * self.options['timeoutSec']):
+            if(self.activeSend > 10):
+                break
             if(self.sendLock == False): #Lock released by waitForResponse()
                 self.sendLock = True
                 if (self.disconnected):
@@ -122,9 +129,11 @@ class ARC():
                 msg = head+command
                 if (self.writeToSocket(msg) == False):
                     raise Exception('Failed to send command!')
+                self.activeSend -= 1   
                 return True
             else:
                 await asyncio.sleep(0.1) #watis 0.1 second before checking again
+        self.activeSend -= 1
         raise Exception("Failed to send in time: "+command)
     
     #Writes the given message to the socket
@@ -138,7 +147,6 @@ class ARC():
 
     #Generates the password's CRC32 data
     def getAuthCRC(self):
-        #str = self.String2Hex(chr(255)+chr(0)+self.rconPassword.strip())
         str = (chr(255)+chr(0)+self.rconPassword.strip()).encode(self.codec)
         authCRC = '%x' % zlib.crc32(bytes(str))
         authCRC = [authCRC[-2:], authCRC[-4:-2], authCRC[-6:-4], authCRC[0:2]] #working
@@ -161,11 +169,13 @@ class ARC():
 ###################################################################################################
 #####                                  BEC Commands                                            ####
 ###################################################################################################   
+#
+#                            *** Warning ***
+#     Depending on your configuation of BEC not all commands might work
+#                            *** Warning ***
 
     #Sends a custom command to the server
-    async def command(self, command):
-        if (is_string(command) == False):
-            raise Exception('Wrong parameter type!')
+    async def command(self, command: str):
         await self.send(command)
         return await self.waitForResponse()
 
@@ -179,16 +189,12 @@ class ARC():
         return None
 
     #Sends a global message to all players
-    async def sayGlobal(self, message):
-        if (type(message) != str):
-            raise Exception('Expected parameter 1 to be string, got %s' % type(message))
+    async def sayGlobal(self, message: str):
         await self.send("Say -1 "+message)
         return None
 
     #Sends a message to a specific player
-    async def sayPlayer(self, player, message):
-        if (type(player) != int or type(message) != str):
-            raise Exception('Wrong parameter type(s)!')
+    async def sayPlayer(self, player: int, message: str):
         await self.send("Say "+str(player)+" "+message)
         return None
 
@@ -198,16 +204,12 @@ class ARC():
         return None
 
     #Changes the MaxPing value. If a player has a higher ping, he will be kicked from the server
-    async def maxPing(self, ping):
-        if (type(ping) != int):
-            raise Exception('Expected parameter 1 to be integer, got %s' % type(ping))
-        await self.send("MaxPing "+ping)
+    async def maxPing(self, ping: int):
+        await self.send("MaxPing "+str(ping))
         return None
     
     #Changes the RCon password
-    async def changePassword(self, password):
-        if (type(password) != str):
-            raise Exception('Expected parameter 1 to be string, got %s' % type(password))
+    async def changePassword(self, password: str):
         await self.send("RConPassword password")
         return None
     
@@ -220,7 +222,7 @@ class ARC():
     async def getPlayers(self):
         await self.send('players')
         result = await self.waitForResponse()
-        return result[1] #strip timedate
+        return result #strip timedate
 
     #Gets a list of all players currently on the server as an array
     async def getPlayersArray(self):
@@ -232,6 +234,11 @@ class ARC():
     #Gets a list of all bans
     async def getMissions(self):
         await self.send('missions')
+        return await self.waitForResponse()    
+        
+    #Loads a mission
+    async def loadMission(self, mission: str):
+        await self.send('mission '+mission)
         return await self.waitForResponse()
 
     #Ban a player's BE GUID from the server. If time is not specified or 0, the ban will be permanent.
@@ -284,8 +291,71 @@ class ARC():
     #Gets the current version of the BE server
     async def getBEServerVersion(self):
         await self.send('version')
+        return await self.waitForResponse()    
+        
+    #Gets the current uptime of the server
+    async def getUptime(self):
+        await self.send('uptime')
         return await self.waitForResponse()
+    
+    #TODO name = str? confirm funcinality 
+    #Add a temporary admin into group
+    async def grant(self, name: str):
+        await self.send('grant '+name)
+        return await self.waitForResponse()    
+        
+    #TODO name = str? confirm funcinality 
+    #Add a temporary admin into group
+    async def degrant(self, name: str):
+        await self.send('degrant '+name)
+        return await self.waitForResponse()
+    
+    #TODO name = str? confirm funcinality 
+    #Send a warning to a player, it will increase the warncount if defined in the config file
+    async def warn(self, name: str):
+        await self.send('warn '+name)
+        return await self.waitForResponse()   
 
+    #Locks the server. No one will be able to join
+    async def lock(self):
+        await self.send('#lock')
+        return await self.waitForResponse()
+    
+    #Unlocks the Server
+    async def unlock(self):
+        await self.send('#unlock')
+        return await self.waitForResponse()
+    
+    #TODO confirm funcinality 
+    #Unlocks the Server
+    #args: [x, "abort", "info"] x= time in seconds till shutdown
+    async def shutdown(self, arg):
+        await self.send('#shutdown '+str(arg))
+        return await self.waitForResponse()    
+    
+    #TODO confirm funcinality 
+    #Restart mission with current player slot selection
+    async def restart(self):
+        await self.send('#restart')
+        return await self.waitForResponse()    
+        
+    #TODO confirm funcinality 
+    #Restart the mission with new player slot selection
+    async def reassign(self):
+        await self.send('#reassign')
+        return await self.waitForResponse()    
+        
+    #TODO confirm funcinality 
+    #Kick N numbers of player based on join time. last joined players will get kicked.
+    async def makeroom(self, number = 1):
+        await self.send('makeroom '+str(number))
+        return await self.waitForResponse()    
+        
+    #TODO confirm funcinality 
+    #Show player info. Beid and join time.
+    async def pinfo(self, name: str):
+        await self.send('pinfo '+str(name))
+        return await self.waitForResponse()
 
 ###################################################################################################
 #####                                  event handler                                           ####
@@ -296,13 +366,23 @@ class ARC():
             self.Events.append([name,func])
         else:
             raise Exception("Failed to add unkown event: "+name)
+
             
     def check_Event(self, parent, *args):
         for event in self.Events:
             func = event[1]
-            #print(func,pass_self, args)
-            if(event[0]==parent):
-                    func(args)
+            if(inspect.iscoroutinefunction(func)): #is async
+                if(event[0]==parent):
+                    if(len(args)>0):
+                        asyncio.ensure_future(func(args))
+                    else:
+                        asyncio.ensure_future(func())
+            else:
+                if(event[0]==parent):
+                    if(len(args)>0):
+                        func(args)
+                    else:
+                        func()
 ###################################################################################################
 #####                                  event functions                                         ####
 ###################################################################################################
@@ -345,13 +425,14 @@ class ARC():
         for i in range(0,timeout):
             if(d < len(self.serverCommandData)): #new command package was received
                 self.sendLock = False #release the lock
-                return self.serverCommandData.pop()
+                return self.serverCommandData.pop()[1]
             await asyncio.sleep(0.1)
         if(self.options['debug']):
             print("Failed to keep connection - Disconnected")
         self.on_command_fail()
         self.sendLock = False
         self.disconnect() #Connection Lost
+        raise Exception("Command timed out")
         
             
     def sendReciveConfirmation(self, sequence):
@@ -402,9 +483,9 @@ class ARC():
         while (self.disconnected == False):
             #package needs to be send every min:1s, max:44s 
             diff = datetime.datetime.now() - self.lastReceived
-            if(diff.total_seconds() > 10): 
+            if(diff.total_seconds() >= 40): 
                 await self.keepAlive()
-            await asyncio.sleep(4)  
+            await asyncio.sleep(2)  
   
     #Keep the stream alive. Send package to BE server. Use function before 45 seconds.
     async def keepAlive(self):
