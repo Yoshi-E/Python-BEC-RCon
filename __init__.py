@@ -1,1 +1,1 @@
-from . import rcon
+name = "bec_rcon"
