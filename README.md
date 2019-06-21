@@ -23,7 +23,7 @@ def msg(message):
     print(message)
 
 import rcon
-rcon_client = rcon.ARC("192.168.000.001", "MyPassword", 2302)
+rcon_client = rcon.ARC("192.168.0.1", "MyPassword", 2302)
 rcon_client.add_Event("received_ServerMessage", msg)
 
 ```
