@@ -1,18 +1,14 @@
 # API and Discord Module for BEC RCon
 
 # Install
-
-API: Download rcon.py and simply import it.  
-Discord: Download all files and add discord_module.py to your bot as [Cogs](https://discordpy.readthedocs.io/en/latest/ext/commands/cogs.html).  
-Example Structure:  
- discord_bot/  
- ├── bot.py (Your discord bot)    
- ├── modules/  
- │     └── rcon/  
- │          ├── __init__.py  
- │          ├── module.py  
- │          ├── rcon.py  
- │          └── rcon_cfg.json  
+Install via pip:
+```
+pip install git+https://github.com/Yoshi-E/Python-BEC-RCon.git
+```
+Alternatively you can download the python wheel and install it with:
+```
+pip install bec_rcon-0.1.0-py3-none-any.whl
+```
 
 # Demo
 Check out the full demo in api_example.py.  
@@ -22,8 +18,8 @@ This short example connects to a RCon server and prints all server messages it r
 def msg(message):
     print(message)
 
-import rcon
-rcon_client = rcon.ARC("192.168.0.1", "MyPassword", 2302)
+import bec_rcon
+rcon_client = bec_rcon.ARC("192.168.0.1", "MyPassword", 2302)
 rcon_client.add_Event("received_ServerMessage", msg)
 
 ```
@@ -33,6 +29,11 @@ rcon_client.add_Event("received_ServerMessage", msg)
 # Contact me:
 Join my Discord: https://discordapp.com/invite/YhBUUSr  
 Bohemia Interactive Forum Thread: https://forums.bohemia.net/forums/topic/223835-api-bec-rcon-api-for-python-and-discord/
+
+# Discord:
+
+A Discord module using this API can be found here:
+https://github.com/Yoshi-E/jmwBOT/tree/master/modules/rcon
 
 # Documentation
 ## Event Handlers:
