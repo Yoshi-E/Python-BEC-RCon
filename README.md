@@ -22,7 +22,7 @@ This short example connects to a RCon server and prints all server messages it r
 def msg(message):
     print(message)
 
-import ARC
+import rcon
 rcon_client = rcon.ARC("192.168.000.001", "MyPassword", 2302)
 rcon_client.add_Event("received_ServerMessage", msg)
 
@@ -32,7 +32,7 @@ rcon_client.add_Event("received_ServerMessage", msg)
 
 # Contact me:
 Join my Discord: https://discordapp.com/invite/YhBUUSr  
-or on the Bohemia Interactive Forum Thread: https://forums.bohemia.net/forums/topic/223835-api-bec-rcon-api-for-python-and-discord/
+Bohemia Interactive Forum Thread: https://forums.bohemia.net/forums/topic/223835-api-bec-rcon-api-for-python-and-discord/
 
 # Documentation
 ## Event Handlers:
