@@ -16,7 +16,7 @@ This short example connects to a RCon server and prints all server messages it r
 ```python
 
 def msg(args):
-	message = args[0]
+    message = args[0]
     print(message)
 
 import bec_rcon
