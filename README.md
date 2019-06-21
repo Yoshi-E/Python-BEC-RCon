@@ -2,26 +2,26 @@
 
 # Install
 
-API: Download rcon.py and simply import it
-Discord: Download all files and add discord_module.py to your bot as [Cogs](https://discordpy.readthedocs.io/en/latest/ext/commands/cogs.html).
-Example Structure:
- discord_bot/
- ├── bot.py (Your discord bot)  
- ├── modules/
- │     └── rcon/
- │          ├── __init__.py
- │          ├── module.py
- │          ├── rcon.py
- │          └── rcon_cfg.json
+API: Download rcon.py and simply import it.  
+Discord: Download all files and add discord_module.py to your bot as [Cogs](https://discordpy.readthedocs.io/en/latest/ext/commands/cogs.html).  
+Example Structure:  
+ discord_bot/  
+ ├── bot.py (Your discord bot)    
+ ├── modules/  
+ │     └── rcon/  
+ │          ├── __init__.py  
+ │          ├── module.py  
+ │          ├── rcon.py  
+ │          └── rcon_cfg.json  
 
 # Demo
-Check out the full demo in api_example.py.
+Check out the full demo in api_example.py.  
 This short example connects to a RCon server and prints all server messages it receives.
 ```python
 
 def msg(message):
-	print(message)
-	
+    print(message)
+
 import ARC
 rcon_client = rcon.ARC("192.168.000.001", "MyPassword", 2302)
 rcon_client.add_Event("received_ServerMessage", msg)
@@ -31,14 +31,15 @@ rcon_client.add_Event("received_ServerMessage", msg)
 * [Outbound messages can only contain ASCII charaters](https://github.com/Yoshi-E/Python-BEC-RCon/issues/1)
 
 # Contact me:
-Join my Discord: https://discordapp.com/invite/YhBUUSr
+Join my Discord: https://discordapp.com/invite/YhBUUSr  
 or on the Bohemia Interactive Forum Thread: https://forums.bohemia.net/forums/topic/223835-api-bec-rcon-api-for-python-and-discord/
 
 # Documentation
 ## Event Handlers:
 The passed functions can by async and can be class objects.
+
 | Event                   | passed args   |
-| ----------------------- |:-------------:|
+|:----------------------- |:--------------|
 | on_disconnect           | none          |
 | login_Sucess            | none          |
 | login_fail              | none          |
@@ -75,14 +76,14 @@ Closes the connection and connects to the server.
 ###### ARC.authorize()
 Authorizes the connection using the RConPassword
 ###### ARC.send(command: str) <async>
-Waits for an opportunity to send a command to the rcon server.
-Only one send will be executed at a time. At most ARC.max_waiting_for_send (Defaut: 10) can be waiting
-Will raise the "Failed to send command!" exception if it failed to send the command within the timeout limit
-ARC.activeSend tracks how many commands are trying to be send at the same time
+Waits for an opportunity to send a command to the rcon server.  
+Only one send will be executed at a time. At most ARC.max_waiting_for_send (Defaut: 10) can be waiting.  
+Will raise the "Failed to send command!" exception if it failed to send the command within the timeout limit.  
+ARC.activeSend tracks how many commands are trying to be send at the same time.  
 ###### ARC.add_Event(event_name: str, function: function)
-Events are: "on_command_fail", "on_disconnect", "login_Sucess", "login_fail", "received_ServerMessage" and "received_CommandMessage"
-Function can be class function and can be asynchronous
-Addtional, custom parameters however can not be passed
+Events are: "on_command_fail", "on_disconnect", "login_Sucess", "login_fail", "received_ServerMessage" and "received_CommandMessage".  
+Function can be class function and can be asynchronous.  
+Addtional, custom parameters however can not be passed.  
 
 ## RCon Commands:
 See rcon.py for details
