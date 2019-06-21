@@ -33,7 +33,7 @@ def disco():
     print("Disconnected")
     #Now you can for example call to reconnect the client (add a delay)
     #sleep(60)
-    #epm_rcon.connect()
+    #arma_rcon.connect()
 
 ###################################################################################################
 #####          Async task keeping the script alive, while a connection exsits                  ####
@@ -42,13 +42,13 @@ def disco():
 # The execution of rcon commands is asynchronous and requires an "await" in an "async" function
 # All commands are listed in BEC commands in rcon.py
 async def main():
-    print("Players:",await epm_rcon.getPlayersArray()) #get Array with all player on server
-    await epm_rcon.listenForDataTask    # waits until on_disconnect
+    print("Players:",await arma_rcon.getPlayersArray()) #get Array with all player on server
+    await arma_rcon.listenForDataTask    # waits until on_disconnect
     print("Connection Lost")
-    #epm_rcon.serverMessage         # Contains all recent messages (limit = 100) Format: [obj(datetime), Str(Message)]
-    #epm_rcon.serverCommandData     # Contains all recent command returned data (limit = 10) Format: [obj(datetime), Str(Data)]
-    #epm_rcon.disconnect()          # Disconnects the client
-    #epm_rcon.connect()             # Logs back in
+    #arma_rcon.serverMessage         # Contains all recent messages (limit = 100) Format: [obj(datetime), Str(Message)]
+    #arma_rcon.serverCommandData     # Contains all recent command returned data (limit = 10) Format: [obj(datetime), Str(Data)]
+    #arma_rcon.disconnect()          # Disconnects the client
+    #arma_rcon.connect()             # Logs back in
 
 ###################################################################################################
 #####                                Main Program                                              ####
@@ -59,9 +59,9 @@ if __name__ == "__main__":
     pw = "Password"         #Your Rcon Password
     port = 3302             #Rcon Port
     
-    epm_rcon = rcon.ARC(ip, pw, port)
-    epm_rcon.add_Event("received_ServerMessage", msg)
-    epm_rcon.add_Event("on_disconnect", disco)
+    arma_rcon = rcon.ARC(ip, pw, port)
+    arma_rcon.add_Event("received_ServerMessage", msg)
+    arma_rcon.add_Event("on_disconnect", disco)
     
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())

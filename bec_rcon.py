@@ -16,7 +16,7 @@ import inspect
 
 class ARC():
 
-    def __init__(self, serverIP, RConPassword, serverPort = 2302, options = {}):
+    def __init__(self, serverIP: str, RConPassword: str, serverPort = 2302, options = {}):
 
         self.options = {
             'timeoutSec'    : 5,
