@@ -15,7 +15,8 @@ Check out the full demo in api_example.py.
 This short example connects to a RCon server and prints all server messages it receives.
 ```python
 
-def msg(message):
+def msg(args):
+	message = args[0]
     print(message)
 
 import bec_rcon
