@@ -256,8 +256,19 @@ class ARC():
         return await self.waitForResponse()    
         
     #Loads a mission
+    #Mission file name without .pbo at the end!
     async def loadMission(self, mission: str):
-        await self.send('mission '+mission)
+        await self.send('#mission '+mission)
+        return await self.waitForResponse()    
+    
+    #Loads Events
+    async def loadEvents(self):
+        await self.send('loadEvents')
+        return await self.waitForResponse()    
+        
+    #Loads Scripts
+    async def loadScripts(self):
+        await self.send('loadScripts')
         return await self.waitForResponse()
 
     #Ban a player's BE GUID from the server. If time is not specified or 0, the ban will be permanent.
@@ -483,6 +494,7 @@ class ARC():
             except Exception as e: 
                 if(type(e) != BlockingIOError): #ignore "no data recevied" error
                     traceback.print_exc()
+                    self.disconnect()
             if(answer==""):
                 await asyncio.sleep(0.5)
                 
