@@ -265,11 +265,6 @@ class ARC():
     async def loadEvents(self):
         await self.send('loadEvents')
         return await self.waitForResponse()    
-        
-    #Loads Scripts
-    async def loadScripts(self):
-        await self.send('loadScripts')
-        return await self.waitForResponse()
 
     #Ban a player's BE GUID from the server. If time is not specified or 0, the ban will be permanent.
     #If reason is not specified the player will be kicked with the message "Banned".
