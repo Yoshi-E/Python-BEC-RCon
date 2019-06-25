@@ -22,7 +22,7 @@ def msg(args):
 import bec_rcon
 rcon_client = bec_rcon.ARC("192.168.0.1", "MyPassword", 2302)
 rcon_client.add_Event("received_ServerMessage", msg)
-rcon_client.loadMission("becti_0097_z1305.Altis.pbo")
+rcon_client.loadMission("becti_0097_z1305.Altis") #Filename without .pbo!
 rcon_client.addBan(player_id=1, reason="Rcon is watching!", time=0)
 ```
 # Known Issues:
