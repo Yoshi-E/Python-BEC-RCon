@@ -6,7 +6,7 @@ import zlib
 import binascii
 import asyncio
 import time
-import rcon
+import bec_rcon
 #Author: Yoshi_E
 #Date: 2019.06.14
 #https://www.battleye.com/downloads/BERConProtocol.txt
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     pw = "Password"         #Your Rcon Password
     port = 3302             #Rcon Port
     
-    arma_rcon = rcon.ARC(ip, pw, port)
+    arma_rcon = bec_rcon.ARC(ip, pw, port)
     arma_rcon.add_Event("received_ServerMessage", msg)
     arma_rcon.add_Event("on_disconnect", disco)
     
