@@ -125,3 +125,9 @@ See https://community.bistudio.com/wiki/Multiplayer_Server_Commands for details
 * monitords
 * goVote
 
+
+## Donate
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/YoshiEU)
+
+
