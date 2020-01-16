@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='bec_rcon',
-    version='0.1.2',
+    version='0.1.3',
     description='API for Battleye extended controls - Arma3',
     long_description=readme,
     author='Yoshi_E',

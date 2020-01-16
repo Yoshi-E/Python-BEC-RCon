@@ -144,11 +144,11 @@ class ARC():
     #Writes the given message to the socket
     def writeToSocket(self, message):
         self.lastSend = datetime.datetime.now()
-        return self.socket.send(bytes(message.encode(self.codec)))
+        return self.socket.send(bytes(message.encode(self.codec, 'replace')))
     
     #Debug funcion to view special chars
     def String2Hex(self,string):
-        return string.encode(self.codec).hex()
+        return string.encode(self.codec, 'replace').hex()
 
     #Generates the password's CRC32 data
     def getAuthCRC(self):
@@ -159,7 +159,7 @@ class ARC():
     
     #Generates the message's CRC32 data
     def getMsgCRC(self, command):
-        str = bytes(((chr(255)+chr(1)+chr(int('0',16))+command).encode(self.codec)))
+        str = bytes(((chr(255)+chr(1)+chr(int('0',16))+command).encode(self.codec , 'replace')))
         msgCRC = ('%x' % zlib.crc32(str)).zfill(8)
         msgCRC = [msgCRC[-2:], msgCRC[-4:-2], msgCRC[-6:-4], msgCRC[0:2]]
         return msgCRC
