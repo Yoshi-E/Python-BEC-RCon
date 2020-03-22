@@ -295,7 +295,7 @@ class ARC():
     #Gets an array of all bans
     async def getBansArray(self):
         bansRaw = await self.getBans()
-        bans = self.cleanList(bansRaw[1])
+        bans = self.cleanList(bansRaw)
         str = re.findall(r'(\d+)\s+([0-9a-fA-F]+)\s([perm|\d]+)\s([\S ]+)', bans)
         return self.formatList(str)
 
