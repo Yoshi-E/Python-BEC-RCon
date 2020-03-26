@@ -7,6 +7,7 @@ from collections import deque
 import datetime
 import codecs
 import inspect
+import logging
 #Author: Yoshi_E
 #Date: 2019.06.14
 #Found on github: https://github.com/Yoshi-E/Python-BEC-RCon
@@ -14,6 +15,12 @@ import inspect
 #Code based on 'felixms' https://github.com/felixms/arma-rcon-class-php
 #License: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
+
+logging.basicConfig(filename='rcon_debug.log',
+            level=logging.WARNING, 
+            format='%(asctime)s %(levelname)-8s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S')
+         
 class ARC():
 
     def __init__(self, serverIP: str, RConPassword: str, serverPort = 2302, options = {}):
@@ -21,8 +28,10 @@ class ARC():
         self.options = {
             'timeoutSec'    : 5,
             'autosaveBans'  : False,
-            'debug'         : False
+            'debug'         : 50
         }
+              
+        self.setlogging(self.options["debug"])
         
         self.codec = "iso-8859-1" #text encoding (not all codings are supported)
         
@@ -60,7 +69,10 @@ class ARC():
         self.checkOptionTypes()
         self.connect()
 
-    
+    def setlogging(self, level):
+        level = int(level)
+        logging.getLogger().setLevel(level)
+        
     #destructor
     def __del__(self):
         self.disconnect()
@@ -69,8 +81,7 @@ class ARC():
     def disconnect(self):
         if (self.disconnected):
             return None
-        if(self.options['debug']):
-            print("Disconnected")
+        logging.info("[rcon] Disconnected")
         self.socket.close()
         self.socket = None
         self.disconnected = True
@@ -107,7 +118,7 @@ class ARC():
             raise Exception("Expected option 'timeoutSec' to be integer, got %s" % type(self.options['timeoutSec']))
         if (type(self.options['autosaveBans']) != bool):
             raise Exception("Expected option 'autosaveBans' to be boolean, got %s" % type(self.options['autosaveBans']))
-        if (type(self.options['debug']) != bool):
+        if (type(self.options['debug']) != int):
             raise Exception("Expected option 'debug' to be boolean, got %s" % type(self.options['debug']))
 
     #Sends the login data to the server in order to send commands later
@@ -444,8 +455,7 @@ class ARC():
                     self.serverCommandData.clear()
                 return data
             await asyncio.sleep(0.1)
-        if(self.options['debug']):
-            print("Failed to keep connection - Disconnected")
+        logging.info("[rcon] Failed to keep connection - Disconnected")
         self.on_command_fail()
         self.sendLock = False
         self.disconnect() #Connection Lost
@@ -473,12 +483,15 @@ class ARC():
                 answer = self.socket.recv(102400).decode(self.codec)
                 header =  answer[:7]
                 crc32_checksum = header[2:-1]
-                body = codecs.decode(""+self.String2Hex(answer[9:]), "hex").decode() #some encoding magic (iso-8859-1(with utf-8 chars) --> utf-8)
+                
+                body = ""+self.String2Hex(answer[9:])
+                body = codecs.decode(body, "hex", errors="strict") #
+                body = body.decode(encoding="utf-8", errors='replace') #some encoding magic (iso-8859-1(with utf-8 chars) --> utf-8)
+                
                 packet_type = self.String2Hex(answer[7])
                 self.lastReceived = datetime.datetime.now()
-                if(self.options['debug']):
-                    print("Received Package type:",packet_type)
-                    print("Data:",body)
+                logging.debug("[rcon] Received Package type: {}".format(packet_type))
+                logging.debug("[rcon] Data: {}".format(body))
                 if(packet_type=="02"): 
                     self.received_ServerMessage(answer, body)
                 if(packet_type=="01"):
@@ -492,9 +505,10 @@ class ARC():
             except Exception as e: 
                 if(type(e) != BlockingIOError): #ignore "no data recevied" error
                     traceback.print_exc()
+                    traceback.logging.debug_exc()
                     self.disconnect()
             if(answer==""):
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.2)
                 
             
     async def keepAliveLoop(self):
@@ -508,12 +522,10 @@ class ARC():
     #Keep the stream alive. Send package to BE server. Use function before 45 seconds.
     async def keepAlive(self):
         try:
-            if(self.options['debug']):
-                print('--Keep connection alive--'+"\n")
+            logging.debug('[rcon] --Keep connection alive--'+"\n")
             await self.getBEServerVersion()
         except Exception as e:
-            if(self.options['debug']):
-                print("Failed to keep Alive - Disconnected")
+            logging.debug("[rcon] Failed to keep Alive - Disconnected")
             self.disconnect() #connection lost
 
     #Converts BE text "array" list to array
