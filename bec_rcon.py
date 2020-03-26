@@ -15,25 +15,23 @@ import logging
 #Code based on 'felixms' https://github.com/felixms/arma-rcon-class-php
 #License: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-
-logging.basicConfig(filename='rcon_debug.log',
-            level=logging.WARNING, 
+logging.basicConfig(handlers=[logging.FileHandler('rcon_debug.log', 'a+', 'utf-8')],
+            level=50, 
             format='%(asctime)s %(levelname)-8s %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S')
-         
+            
 class ARC():
 
     def __init__(self, serverIP: str, RConPassword: str, serverPort = 2302, options = {}):
 
         self.options = {
-            'timeoutSec'    : 5,
+            'timeoutSec'    : 25,
             'autosaveBans'  : False,
             'debug'         : 50
         }
               
-        self.setlogging(self.options["debug"])
         
-        self.codec = "iso-8859-1" #text encoding (not all codings are supported)
+        self.codec = "iso-8859-1" #"iso-8859-1" #text encoding (not all codings are supported)
         
         self.socket = None;
         # Status of the connection
@@ -55,7 +53,7 @@ class ARC():
         #limits how many data packages can be send at the same time
         self.max_waiting_for_send = 10 
         # Stores all recent command returned data (Format: array([datetime, msg],...))
-        self.serverCommandData = deque( maxlen=10) 
+        self.serverCommandData = deque( maxlen=1000) 
         
         if (type(serverPort) != int or type(RConPassword) != str or type(serverIP) != str):
             raise Exception('Wrong constructor parameter type(s)!')
@@ -68,7 +66,8 @@ class ARC():
         self.options = {**self.options, **options}
         self.checkOptionTypes()
         self.connect()
-
+        self.setlogging(self.options["debug"])
+        
     def setlogging(self, level):
         level = int(level)
         logging.getLogger().setLevel(level)
@@ -129,7 +128,7 @@ class ARC():
 
     #sends the RCon command, but waits until command is confirmed before sending another one
     async def send(self, command: str):
-        
+        #command = command.encode('utf-8', "replace").decode('utf-8', "replace")
         self.activeSend += 1
         for i in range(0,10 * self.options['timeoutSec']):
             if(self.activeSend > self.max_waiting_for_send):
@@ -140,8 +139,7 @@ class ARC():
                     raise Exception('Failed to send command, because the connection is closed!')
                 msgCRC = self.getMsgCRC(command)
                 head = 'BE'+chr(int(msgCRC[0],16))+chr(int(msgCRC[1],16))+chr(int(msgCRC[2],16))+chr(int(msgCRC[3],16))+chr(int('ff',16))+chr(int('01',16))+chr(int('0',16))
-                msg = head+command
-                if (self.writeToSocket(msg) == False):
+                if (self.writeToSocket(head, command) == False):
                     raise Exception('Failed to send command!')
                 self.activeSend -= 1   
                 return True
@@ -153,14 +151,16 @@ class ARC():
         else:
             raise Exception("Failed to send in time: "+command)
     #Writes the given message to the socket
-    def writeToSocket(self, message):
+    def writeToSocket(self, head, command=""):
         self.lastSend = datetime.datetime.now()
-        return self.socket.send(bytes(message.encode(self.codec, 'replace')))
+        a = bytes(head.encode(self.codec, 'replace'))
+        b = bytes.fromhex(command.encode("utf-8", 'replace').hex())
+        return self.socket.send(a+b)
     
     #Debug funcion to view special chars
     def String2Hex(self,string):
         return string.encode(self.codec, 'replace').hex()
-
+        
     #Generates the password's CRC32 data
     def getAuthCRC(self):
         str = (chr(255)+chr(0)+self.rconPassword.strip()).encode(self.codec)
@@ -170,7 +170,10 @@ class ARC():
     
     #Generates the message's CRC32 data
     def getMsgCRC(self, command):
-        str = bytes(((chr(255)+chr(1)+chr(int('0',16))+command).encode(self.codec , 'replace')))
+        a = chr(255)+chr(1)+chr(int('0',16))
+        a = bytes(a.encode(self.codec, 'replace'))
+        b = bytes.fromhex(command.encode("utf-8", 'replace').hex())
+        str = a+b
         msgCRC = ('%x' % zlib.crc32(str)).zfill(8)
         msgCRC = [msgCRC[-2:], msgCRC[-4:-2], msgCRC[-6:-4], msgCRC[0:2]]
         return msgCRC
@@ -446,7 +449,7 @@ class ARC():
     #returns when a new command package was receive
     async def waitForResponse(self):
         d = len(self.serverCommandData)
-        timeout = self.options['timeoutSec'] * 10 #10 = one second
+        timeout = self.options['timeoutSec'] * 20 #10 = one second
         for i in range(0,timeout):
             if(d < len(self.serverCommandData)): #new command package was received
                 self.sendLock = False #release the lock
@@ -454,7 +457,7 @@ class ARC():
                 if(len(self.serverCommandData) >= self.serverCommandData.maxlen/2):
                     self.serverCommandData.clear()
                 return data
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
         logging.info("[rcon] Failed to keep connection - Disconnected")
         self.on_command_fail()
         self.sendLock = False
