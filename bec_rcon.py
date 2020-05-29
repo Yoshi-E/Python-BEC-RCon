@@ -54,6 +54,8 @@ class ARC():
         self.max_waiting_for_send = 10 
         # Stores all recent command returned data (Format: array([datetime, msg],...))
         self.serverCommandData = deque( maxlen=1000) 
+        #denotes if the object is getting destoryed
+        self.terminated = False
         
         if (type(serverPort) != int or type(RConPassword) != str or type(serverIP) != str):
             raise Exception('Wrong constructor parameter type(s)!')
@@ -74,6 +76,7 @@ class ARC():
         
     #destructor
     def __del__(self):
+        self.terminated = True
         self.disconnect()
     
     #Closes the connection
@@ -397,6 +400,8 @@ class ARC():
 
             
     def check_Event(self, parent, *args):
+        if(self.terminated == True):
+            return
         for event in self.Events:
             func = event[1]
             if(inspect.iscoroutinefunction(func)): #is async

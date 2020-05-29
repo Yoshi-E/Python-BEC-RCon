@@ -27,6 +27,7 @@ rcon_client.addBan(player_id=1, reason="Rcon is watching!", time=0)
 ```
 # Known Issues:
 * [Outbound messages can only contain ASCII charaters](https://github.com/Yoshi-E/Python-BEC-RCon/issues/1)
+* [During mission load RCon can lose connection] This is intended behavior.
 
 # Contact me:
 Join my Discord: https://discordapp.com/invite/YhBUUSr  
