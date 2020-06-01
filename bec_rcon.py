@@ -285,19 +285,19 @@ class ARC():
 
     #Ban a player's BE GUID from the server. If time is not specified or 0, the ban will be permanent.
     #If reason is not specified the player will be kicked with the message "Banned".
-    async def banPlayer(self, player, reason = 'Banned', time = 0):
-        if (type(player) != str and type(player) != int):
-            raise Exception('Expected parameter 1 to be integer or string, got %s' % type(player))
+    async def banPlayer(self, player_id, reason = 'Banned', time = 0):
+        if (type(player_id) != str and type(player) != int):
+            raise Exception('Expected parameter 1 to be integer or string, got %s' % type(player_id))
         if (type(reason) != str or type(time) != int):
             raise Exception('Wrong parameter type(s)!')
-        await self.send("ban "+str(player)+" "+str(time)+" "+reason)
+        await self.send("ban "+str(player_id)+" "+str(time)+" "+reason)
         if (self.options['autosaveBans']):
             self.writeBans()
         return await self.waitForResponse()   
 
     #Same as "banPlayer", but allows to ban a player that is not currently on the server
-    async def addBan(self, player_id: int, reason = 'Banned', time = 0):
-        await self.send("addBan "+player+" "+str(time)+" "+reason)
+    async def addBan(self, guid: int, reason = 'Banned', time = 0):
+        await self.send("addBan "+guid+" "+str(time)+" "+reason)
         if (self.options['autosaveBans']):
             self.writeBans()
         return await self.waitForResponse()
