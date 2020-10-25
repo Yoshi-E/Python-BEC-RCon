@@ -152,6 +152,7 @@ class ARC():
         if(self.activeSend > self.max_waiting_for_send):
             raise Exception("Failed to send in time: "+command+ " too many commands in queue >"+str(self.max_waiting_for_send))
         else:
+            self.sendLock = False
             raise Exception("Failed to send in time: "+command)
     #Writes the given message to the socket
     def writeToSocket(self, head, command=""):
