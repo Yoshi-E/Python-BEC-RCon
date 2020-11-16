@@ -9,6 +9,7 @@ import codecs
 import inspect
 import logging
 from logging.handlers import RotatingFileHandler
+import os
 #Author: Yoshi_E
 #Date: 2019.06.14
 #Found on github: https://github.com/Yoshi-E/Python-BEC-RCon
