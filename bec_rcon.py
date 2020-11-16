@@ -8,6 +8,7 @@ import datetime
 import codecs
 import inspect
 import logging
+from logging.handlers import RotatingFileHandler
 #Author: Yoshi_E
 #Date: 2019.06.14
 #Found on github: https://github.com/Yoshi-E/Python-BEC-RCon
@@ -15,10 +16,15 @@ import logging
 #Code based on 'felixms' https://github.com/felixms/arma-rcon-class-php
 #License: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-logging.basicConfig(handlers=[logging.FileHandler('rcon_debug.log', 'a+', 'utf-8')],
-            level=50, 
-            format='%(asctime)s %(levelname)-8s %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S')
+
+log_formatter = logging.Formatter('%(asctime)s %(levelname)s %(funcName)s(%(lineno)d) %(message)s')
+logFile = os.path.dirname(os.path.realpath(__file__))+"/bec_rcon.log"
+my_handler = RotatingFileHandler(logFile, mode='a', maxBytes=1*1000000, backupCount=10, encoding=None, delay=0)
+my_handler.setFormatter(log_formatter)
+my_handler.setLevel(logging.INFO)
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+log.addHandler(my_handler)
             
 class ARC():
 
@@ -27,7 +33,7 @@ class ARC():
         self.options = {
             'timeoutSec'    : 25,
             'autosaveBans'  : False,
-            'debug'         : 50
+            'debug'         : 50 #See https://docs.python.org/3/library/logging.html#levels
         }
               
         
@@ -72,7 +78,7 @@ class ARC():
         
     def setlogging(self, level):
         level = int(level)
-        logging.getLogger().setLevel(level)
+        log.setLevel(level)
         
     #destructor
     def __del__(self):
@@ -83,7 +89,7 @@ class ARC():
     def disconnect(self):
         if (self.disconnected):
             return None
-        logging.info("[rcon] Disconnected")
+        log.info("[rcon] Disconnected")
         self.socket.close()
         self.socket = None
         self.disconnected = True
@@ -464,7 +470,7 @@ class ARC():
                     self.serverCommandData.clear()
                 return data
             await asyncio.sleep(0.05)
-        logging.info("[rcon] Failed to keep connection - Disconnected")
+        log.info("[rcon] Failed to keep connection - Disconnected")
         self.on_command_fail()
         self.sendLock = False
         self.disconnect() #Connection Lost
@@ -499,8 +505,8 @@ class ARC():
                 
                 packet_type = self.String2Hex(answer[7])
                 self.lastReceived = datetime.datetime.now()
-                logging.debug("[rcon] Received Package type: {}".format(packet_type))
-                logging.debug("[rcon] Data: {}".format(body))
+                log.debug("[rcon] Received Package type: {}".format(packet_type))
+                log.debug("[rcon] Data: {}".format(body))
                 if(packet_type=="02"): 
                     self.received_ServerMessage(answer, body)
                 if(packet_type=="01"):
@@ -531,10 +537,10 @@ class ARC():
     #Keep the stream alive. Send package to BE server. Use function before 45 seconds.
     async def keepAlive(self):
         try:
-            logging.debug('[rcon] --Keep connection alive--'+"\n")
+            log.debug('[rcon] --Keep connection alive--'+"\n")
             await self.getBEServerVersion()
         except Exception as e:
-            logging.debug("[rcon] Failed to keep Alive - Disconnected")
+            log.debug("[rcon] Failed to keep Alive - Disconnected")
             self.disconnect() #connection lost
 
     #Converts BE text "array" list to array
