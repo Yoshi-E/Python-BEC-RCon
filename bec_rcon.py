@@ -377,7 +377,8 @@ class ARC():
     
     #Shuts down the server after mission ends 
     async def shutdownserveraftermission(self):
-        await self.send('#shutdownserveraftermission')
+        #await self.send('#shutdownserveraftermission') -- does not work
+        await self.send('#shutdownaftermission')
         return await self.waitForResponse()    
         
     #Restart the mission with new player slot selection
