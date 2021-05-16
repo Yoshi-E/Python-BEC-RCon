@@ -521,8 +521,7 @@ class ARC():
                         self.login_Sucess()
             except Exception as e: 
                 if(type(e) != BlockingIOError): #ignore "no data recevied" error
-                    traceback.print_exc()
-                    traceback.logging.debug_exc()
+                    log.error(traceback.format_exc())
                     self.disconnect()
             if(answer==""):
                 await asyncio.sleep(0.2)
