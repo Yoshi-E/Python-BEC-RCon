@@ -14,7 +14,6 @@
 
 import socket
 import re
-import time
 import zlib
 import asyncio
 from collections import deque
@@ -240,10 +239,9 @@ class RCON():
     
     async def listenForData(self):
         while (self.disconnected == False):
-            answer = ""
+            answer = None
             try:
-                answer = self.socket.recv(102400).decode(self.codec)
-               
+                answer = self.socket.recv(4096).decode(self.codec)  
                 header =  answer[:7]
                 crc32_checksum = header[2:-1] # TODO: verify checksum
 
@@ -267,11 +265,13 @@ class RCON():
                         raise PermissionError(excption)
                     else:
                         self.login_Sucess()
-            except BlockingIOError: 
+            except BlockingIOError as e: 
                 pass
-            if(answer==""):
-                await asyncio.sleep(0.2)
-                
+            except Exception as e:
+                self.logger.exception(f"listenForData: {e}")
+
+            if not answer:
+                await asyncio.sleep(0.2)  
             
     async def keepAliveLoop(self):
         while (self.disconnected == False):
@@ -360,10 +360,10 @@ class RCON():
     #waitForResponse() handles all inbound packets, you can still fetch them here though.
     def received_CommandMessage(self, packet, message):
         if(len(message)>3 and self.String2Hex(message[0]) =="00"): #is multi packet
-            self.MultiPackets.append(message[3:])
+            self.multiPackets.append(message[3:])
             if(int(self.String2Hex(message[1]),16)-1 == int(self.String2Hex(message[2]),16)):
-                self.serverCommandData.append([datetime.datetime.now(), "".join(self.MultiPackets)])
-                self.MultiPackets = []
+                self.serverCommandData.append([datetime.datetime.now(), "".join(self.multiPackets)])
+                self.multiPackets = []
         else: #Normal Package
             self.serverCommandData.append([datetime.datetime.now(), message])
         self.check_Event("received_CommandMessage", message)
