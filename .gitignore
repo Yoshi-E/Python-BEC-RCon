@@ -112,3 +112,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+example/api_example_secret.py

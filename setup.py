@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='bec_rcon',
-    version='0.1.7',
+    version='0.2.0',
     description='API for Battleye extended controls - Arma3',
     long_description=readme,
     author='Yoshi_E',
@@ -33,8 +33,7 @@ setup(
      'License :: Attribution-NonCommercial-ShareAlike',
 
     # Specify the Python versions you support here.
-    'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7'
+    'Programming Language :: Python :: 3.11'
     ],
     keywords='arma rcon battleye bec administration',
     project_urls={
@@ -43,6 +42,6 @@ setup(
     'Tracker': 'https://github.com/Yoshi-E/Python-BEC-RCon/issues',
     },
     py_modules=["bec_rcon"],
-    python_requires='>=3.6',
+    python_requires='>=3.11',
     packages=find_packages(exclude=('example'))
 )
